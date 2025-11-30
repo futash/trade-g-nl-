@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Bias, Direction } from '../types';
-import { analyzeBias } from '../services/geminiService';
-import { Plus, ExternalLink, Trash2, ArrowRight, Wand2, Loader2 } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, ArrowRight } from 'lucide-react';
+import { Translation } from '../translations';
 
 interface BiasTabProps {
   biases: Bias[];
@@ -9,6 +9,7 @@ interface BiasTabProps {
   addBias: (bias: Bias) => void;
   deleteBias: (id: string) => void;
   onExecute: (bias: Bias) => void;
+  t: Translation;
 }
 
 export const BiasTab: React.FC<BiasTabProps> = ({
@@ -17,9 +18,9 @@ export const BiasTab: React.FC<BiasTabProps> = ({
   addBias,
   deleteBias,
   onExecute,
+  t
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   // Form State
   const [pair, setPair] = useState(favorites[0] || '');
@@ -48,83 +49,77 @@ export const BiasTab: React.FC<BiasTabProps> = ({
     setDirection('LONG');
   };
 
-  const handleAIAnalyze = async () => {
-    if (!pair) return;
-    setIsAnalyzing(true);
-    const result = await analyzeBias(pair, direction, notes);
-    setNotes((prev) => (prev ? `${prev}\n\n-- AI Analysis --\n${result}` : result));
-    setIsAnalyzing(false);
-  };
-
   const activeBiases = biases.filter(b => !b.isExecuted);
 
   return (
-    <div className="p-4 max-w-5xl mx-auto relative min-h-screen pb-24">
-      <div className="flex justify-between items-center mb-6">
+    <div className="min-h-screen">
+      <div className="flex justify-between items-end mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-white">Weekly Biases</h2>
-          <p className="text-slate-400 text-sm">Plan your trades before executing.</p>
+          <h2 className="text-3xl font-bold text-white mb-1">{t.bias.title}</h2>
+          <p className="text-app-muted text-sm">{t.bias.subtitle}</p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all shadow-lg hover:shadow-indigo-500/25"
+          className="btn-primary px-4 py-2.5 text-sm flex items-center gap-2 shadow-lg shadow-blue-500/20"
         >
-          <Plus size={18} /> Add Bias
+          <Plus size={18} /> {t.bias.addBias}
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 pb-24">
         {activeBiases.length === 0 && (
-          <div className="col-span-full text-center py-20 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
-            No active biases. Start planning!
+          <div className="col-span-full py-32 flex flex-col items-center justify-center text-app-muted border-2 border-dashed border-app-border rounded-3xl bg-app-surface/30">
+            <p className="text-sm font-medium">{t.bias.noBiases}</p>
           </div>
         )}
+        
         {activeBiases.map((bias) => (
           <div
             key={bias.id}
-            className="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg relative group hover:border-slate-600 transition-colors"
+            className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-card hover:shadow-glow transition-all duration-300 relative group flex flex-col"
           >
-            <div className="flex justify-between items-start mb-3">
-              <span className="text-xl font-bold text-white font-mono">{bias.pair}</span>
-              <span
-                className={`px-2 py-1 rounded text-xs font-bold ${
-                  bias.direction === 'LONG'
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'bg-rose-500/20 text-rose-400'
-                }`}
-              >
-                {bias.direction}
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                  <h3 className="text-2xl font-bold text-white tracking-tight">{bias.pair}</h3>
+                  <p className="text-xs text-app-muted font-medium mt-1">
+                      {new Date(bias.createdAt).toLocaleDateString()}
+                  </p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${bias.direction === 'LONG' ? 'bg-app-success/10 text-app-success border border-app-success/20' : 'bg-app-danger/10 text-app-danger border border-app-danger/20'}`}>
+                    {bias.direction}
               </span>
             </div>
 
             {bias.notes && (
-              <p className="text-slate-400 text-sm mb-4 line-clamp-3 whitespace-pre-wrap">{bias.notes}</p>
+              <div className="bg-app-bg/50 rounded-xl p-3 mb-4 flex-1">
+                 <p className="text-app-text text-sm line-clamp-3 whitespace-pre-wrap leading-relaxed">{bias.notes}</p>
+              </div>
             )}
 
-            <div className="flex gap-2 mt-4 pt-4 border-t border-slate-700">
+            <div className="flex gap-3 pt-2 mt-auto">
                {bias.chartLink && (
                   <a
                     href={bias.chartLink}
                     target="_blank"
                     rel="noreferrer"
-                    className="p-2 bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition"
+                    className="p-2.5 rounded-xl bg-app-card text-app-muted hover:text-white hover:bg-app-border transition"
                     title="Open Chart"
                   >
-                    <ExternalLink size={16} />
+                    <ExternalLink size={18} />
                   </a>
                 )}
                 <button
                   onClick={() => deleteBias(bias.id)}
-                  className="p-2 bg-slate-700 text-rose-400 rounded hover:bg-rose-900/30 transition"
+                  className="p-2.5 rounded-xl bg-app-card text-app-muted hover:text-app-danger hover:bg-app-danger/10 transition"
                   title="Delete"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={18} />
                 </button>
                 <button
                   onClick={() => onExecute(bias)}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded px-3 py-2 text-sm font-semibold flex justify-center items-center gap-2 transition ml-auto"
+                  className="flex-1 btn-secondary hover:bg-white hover:text-black py-2.5 text-sm flex justify-center items-center gap-2 group-hover:bg-app-primary group-hover:text-white transition-colors"
                 >
-                  Execute <ArrowRight size={16} />
+                  {t.bias.execute} <ArrowRight size={16} />
                 </button>
             </div>
           </div>
@@ -133,97 +128,88 @@ export const BiasTab: React.FC<BiasTabProps> = ({
 
       {/* Add Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4">New Weekly Bias</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-slate-400 text-sm mb-1">Pair</label>
-                  <select
-                    value={pair}
-                    onChange={(e) => setPair(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-3 outline-none focus:ring-2 focus:ring-indigo-500"
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-app-surface w-full max-w-md rounded-2xl border border-app-border shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-app-border bg-app-bg/50">
+                <h3 className="text-white font-bold text-center">Plan New Trade</h3>
+            </div>
+            
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="block text-app-muted text-xs font-semibold mb-1.5 ml-1">Pair / Asset</label>
+                <select
+                  value={pair}
+                  onChange={(e) => setPair(e.target.value)}
+                  className="w-full input-field p-3"
+                >
+                  {favorites.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                  {favorites.length === 0 && <option value="">No Favorites</option>}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-app-muted text-xs font-semibold mb-1.5 ml-1">Direction</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setDirection('LONG')}
+                    className={`py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
+                      direction === 'LONG'
+                        ? 'bg-app-success text-white shadow-lg shadow-green-500/20'
+                        : 'bg-app-card text-app-muted border border-transparent'
+                    }`}
                   >
-                    {favorites.map((f) => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
-                    {favorites.length === 0 && <option value="">No favorites selected</option>}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-400 text-sm mb-1">Direction</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setDirection('LONG')}
-                      className={`p-3 rounded-lg font-bold transition ${
-                        direction === 'LONG'
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-slate-900 text-slate-500 hover:bg-slate-700'
-                      }`}
-                    >
-                      LONG
-                    </button>
-                    <button
-                      onClick={() => setDirection('SHORT')}
-                      className={`p-3 rounded-lg font-bold transition ${
-                        direction === 'SHORT'
-                          ? 'bg-rose-600 text-white'
-                          : 'bg-slate-900 text-slate-500 hover:bg-slate-700'
-                      }`}
-                    >
-                      SHORT
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-400 text-sm mb-1">TradingView Chart URL (Optional)</label>
-                  <input
-                    type="url"
-                    value={chartLink}
-                    onChange={(e) => setChartLink(e.target.value)}
-                    placeholder="https://tradingview.com/..."
-                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-3 outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-slate-400 text-sm">Notes / Plan</label>
-                    <button 
-                        onClick={handleAIAnalyze}
-                        disabled={isAnalyzing || !process.env.API_KEY}
-                        className="text-xs flex items-center gap-1 text-indigo-400 hover:text-indigo-300 disabled:opacity-50"
-                    >
-                        {isAnalyzing ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
-                        Ask AI
-                    </button>
-                  </div>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Key levels, confluences, setup details..."
-                    rows={4}
-                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-3 outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                  />
+                    LONG ↗
+                  </button>
+                  <button
+                    onClick={() => setDirection('SHORT')}
+                    className={`py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
+                      direction === 'SHORT'
+                        ? 'bg-app-danger text-white shadow-lg shadow-red-500/20'
+                        : 'bg-app-card text-app-muted border border-transparent'
+                    }`}
+                  >
+                    SHORT ↘
+                  </button>
                 </div>
               </div>
+
+              <div>
+                <label className="block text-app-muted text-xs font-semibold mb-1.5 ml-1">Chart URL (Optional)</label>
+                <input
+                  type="url"
+                  value={chartLink}
+                  onChange={(e) => setChartLink(e.target.value)}
+                  placeholder="https://tradingview.com/..."
+                  className="w-full input-field p-3 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-app-muted text-xs font-semibold mb-1.5 ml-1">Analysis & Notes</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="What is your thesis?"
+                  rows={3}
+                  className="w-full input-field p-3 text-sm resize-none"
+                />
+              </div>
             </div>
-            <div className="bg-slate-900 p-4 flex gap-3 justify-end border-t border-slate-700">
+
+            <div className="grid grid-cols-2 gap-4 p-6 pt-0">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 text-slate-400 hover:text-white transition"
+                className="py-3 rounded-xl bg-transparent border border-app-border text-app-muted hover:text-white hover:bg-app-card transition font-medium text-sm"
               >
-                Cancel
+                {t.common.cancel}
               </button>
               <button
                 onClick={handleAdd}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition"
+                className="btn-primary py-3 text-sm"
               >
-                Save Plan
+                {t.common.save} Plan
               </button>
             </div>
           </div>

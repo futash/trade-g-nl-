@@ -1,5 +1,5 @@
 {
-  "name": "TradeSync Journal",
-  "description": "A professional trading journal and assistant for tracking weekly biases, executing trades with R-multiples, and analyzing performance.",
+  "name": "KaizenLog",
+  "description": "A professional trading journal and assistant for tracking weekly biases, executing trades with R-multiples, and analyzing performance with a Kaizen philosophy.",
   "requestFramePermissions": []
 }

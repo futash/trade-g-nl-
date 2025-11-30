@@ -1,118 +1,177 @@
-import React, { useState, useEffect } from 'react';
-import { Trade, TradeStatus, PartialTP } from '../types';
-import { Target, CheckCircle, XCircle, MoreVertical, Plus, Trash, AlertTriangle, Calculator } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trade, TradeStatus, PartialTP, Account, Strategy } from '../types';
+import { Check, X, MoreHorizontal, TrendingUp, TrendingDown, Target, Shield } from 'lucide-react';
+import { Translation } from '../translations';
 
 interface ActiveTradesTabProps {
   trades: Trade[];
+  accounts: Account[];
+  strategies: Strategy[];
   updateTrade: (trade: Trade) => void;
   closeTrade: (tradeId: string, finalStatus: TradeStatus, finalR: number) => void;
+  t: Translation;
 }
 
 export const ActiveTradesTab: React.FC<ActiveTradesTabProps> = ({
   trades,
+  accounts,
+  strategies,
   updateTrade,
   closeTrade,
+  t
 }) => {
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('ALL');
 
-  // Filter only open trades
-  const activeTrades = trades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL' || t.status === 'BE');
+  const openTrades = trades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL' || t.status === 'BE');
 
-  const getProfitInR = (trade: Trade, currentStatus: TradeStatus) => {
-      // This is a static calculator for display. Real calculations happen on close.
-      // Since we don't have live price, we show Potential R or Locked R.
-      return trade.status === 'BE' ? '0.00' : 'Open';
-  };
+  const filteredTrades = selectedAccountId === 'ALL' 
+    ? openTrades 
+    : openTrades.filter(t => t.accountId === selectedAccountId);
 
   return (
-    <div className="p-4 max-w-5xl mx-auto pb-24">
-      <h2 className="text-2xl font-bold text-white mb-6">Active Executions</h2>
+    <div className="pb-24">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-1">{t.active.title}</h2>
+            <p className="text-app-muted text-sm">Monitor your open positions</p>
+          </div>
+          
+          <div className="flex bg-app-surface p-1 rounded-xl overflow-x-auto custom-scrollbar border border-app-border/50">
+             <button
+                onClick={() => setSelectedAccountId('ALL')}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                    selectedAccountId === 'ALL' 
+                    ? 'bg-app-card text-white shadow-sm' 
+                    : 'text-app-muted hover:text-white'
+                }`}
+             >
+                 All Accounts
+             </button>
+             <button
+                onClick={() => setSelectedAccountId('GENERAL')}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                    selectedAccountId === 'GENERAL' 
+                    ? 'bg-app-card text-white shadow-sm' 
+                    : 'text-app-muted hover:text-white'
+                }`}
+             >
+                 General
+             </button>
+             {accounts.map(acc => (
+                 <button
+                    key={acc.id}
+                    onClick={() => setSelectedAccountId(acc.id)}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                        selectedAccountId === acc.id
+                        ? 'bg-app-card text-white shadow-sm' 
+                        : 'text-app-muted hover:text-white'
+                    }`}
+                 >
+                     {acc.name}
+                 </button>
+             ))}
+          </div>
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {activeTrades.length === 0 && (
-          <div className="col-span-full text-center py-20 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
-            No active trades running. Go to Biases to execute one.
+        {filteredTrades.length === 0 && (
+          <div className="col-span-full py-20 flex flex-col items-center justify-center text-app-muted border-2 border-dashed border-app-border rounded-3xl bg-app-surface/30">
+             <div className="bg-app-card p-4 rounded-full mb-3">
+                 <ActivityIcon />
+             </div>
+            <p className="font-medium">{t.active.noTrades}</p>
           </div>
         )}
 
-        {activeTrades.map((trade) => (
-          <div key={trade.id} className="bg-slate-800 rounded-xl border border-slate-700 shadow-xl overflow-hidden">
-            <div className="p-5">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-2xl font-bold text-white font-mono">{trade.pair}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                     <span
-                        className={`px-2 py-0.5 rounded text-xs font-bold ${
-                          trade.direction === 'LONG'
-                            ? 'bg-emerald-500/20 text-emerald-400'
-                            : 'bg-rose-500/20 text-rose-400'
-                        }`}
-                      >
-                        {trade.direction}
-                      </span>
-                      <span className="text-slate-400 text-xs">@ {trade.entryPrice}</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                    <div className="text-xs text-slate-500">Risk Distance</div>
-                    <div className="font-mono text-slate-300">{(trade.rValue).toFixed(5)}</div>
-                </div>
-              </div>
+        {filteredTrades.map((trade) => {
+           const strategyName = trade.strategyId 
+             ? strategies.find(s => s.id === trade.strategyId)?.name 
+             : null;
+           
+           const riskMult = trade.riskMultiple || 1.0;
 
-              {/* Trade Stats */}
-              <div className="grid grid-cols-2 gap-4 mb-4 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                  <div>
-                      <span className="text-xs text-slate-500 block">Stop Loss</span>
-                      <span className="text-rose-400 font-mono text-sm">{trade.stopLoss}</span>
-                  </div>
-                   <div>
-                      <span className="text-xs text-slate-500 block">Status</span>
-                      <span className={`font-mono text-sm ${trade.status === 'BE' ? 'text-yellow-400' : 'text-blue-400'}`}>
-                          {trade.status === 'BE' ? 'Break Even' : 'Running'}
-                      </span>
-                  </div>
-              </div>
+           return (
+            <div key={trade.id} className="bg-app-surface border border-app-border rounded-2xl p-5 relative transition-all hover:shadow-glow group">
+                {/* Header Info */}
+                <div className="flex justify-between items-start mb-5">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                             <h3 className="text-2xl font-bold text-white">{trade.pair}</h3>
+                             <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 ${trade.direction === 'LONG' ? 'bg-app-success/10 text-app-success' : 'bg-app-danger/10 text-app-danger'}`}>
+                                {trade.direction === 'LONG' ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
+                                {trade.direction}
+                             </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                             <span className="px-2 py-0.5 rounded-md bg-app-bg text-[10px] font-medium text-app-muted border border-app-border">
+                                {trade.accountId === 'GENERAL' 
+                                    ? 'General Acc' 
+                                    : accounts.find(a => a.id === trade.accountId)?.name || 'N/A'}
+                            </span>
+                            {strategyName && (
+                                <span className="px-2 py-0.5 rounded-md bg-app-primary/10 text-[10px] font-medium text-app-primary border border-app-primary/20">
+                                    {strategyName}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <div className="text-right bg-app-card/30 p-2 rounded-xl border border-app-border/30">
+                         <span className="text-[10px] font-bold text-app-muted uppercase block mb-1">Risk</span>
+                         <span className="text-lg font-bold text-white flex items-center justify-end gap-1">
+                             <Shield size={14} className="text-app-primary" />
+                             {riskMult}R
+                         </span>
+                    </div>
+                </div>
 
-              {/* Partial TPs */}
-              {trade.tps.length > 0 && (
-                  <div className="mb-4">
-                      <p className="text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Take Profits</p>
-                      <div className="space-y-1">
-                          {trade.tps.map((tp, idx) => {
-                              const rMultiple = trade.direction === 'LONG' 
+                <div className="grid grid-cols-2 gap-4 mb-5 bg-app-bg/50 p-3 rounded-xl">
+                    <div className="flex flex-col">
+                         <span className="text-[10px] text-app-muted uppercase font-bold mb-1">Entry Price</span>
+                         <span className="text-white font-mono font-medium">{trade.entryPrice}</span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                         <span className="text-[10px] text-app-muted uppercase font-bold mb-1">Stop Loss</span>
+                         <span className="text-app-danger font-mono font-medium">{trade.stopLoss}</span>
+                    </div>
+                </div>
+
+                {/* TP Section - Clean List */}
+                {trade.tps.length > 0 && (
+                    <div className="mb-5 space-y-2">
+                        {trade.tps.map((tp, idx) => {
+                             const distanceR = trade.direction === 'LONG' 
                                 ? (tp.price - trade.entryPrice) / trade.rValue 
                                 : (trade.entryPrice - tp.price) / trade.rValue;
-                              
-                              return (
-                                <div key={tp.id} className="flex justify-between items-center text-sm p-2 bg-slate-900 rounded border border-slate-700">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${tp.hit ? 'bg-emerald-500' : 'bg-slate-600'}`}></div>
-                                        <span className={tp.hit ? 'text-emerald-400 line-through' : 'text-slate-300'}>
-                                            {tp.price} <span className="text-xs text-slate-500">({tp.percentage}%)</span>
-                                        </span>
-                                    </div>
-                                    <span className="font-mono text-xs text-slate-400">
-                                        {rMultiple > 0 ? '+' : ''}{rMultiple.toFixed(2)}R
-                                    </span>
-                                </div>
-                              )
-                          })}
-                      </div>
-                  </div>
-              )}
+                             const realizedR = distanceR * riskMult;
 
-              <div className="flex gap-2 mt-4">
-                  <button 
-                    onClick={() => setEditingTrade(trade)}
-                    className="flex-1 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 py-2 rounded-lg text-sm font-medium transition"
-                  >
-                      Update / Manage
-                  </button>
-              </div>
+                            return (
+                                <div key={tp.id} className="flex items-center gap-3 text-xs">
+                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${tp.hit ? 'bg-app-success border-app-success' : 'border-app-border bg-app-bg'}`}>
+                                        {tp.hit && <Check size={10} className="text-white" />}
+                                    </div>
+                                    <span className={`font-mono ${tp.hit ? 'text-app-success font-bold' : 'text-app-muted'}`}>TP{idx+1}: {tp.price}</span>
+                                    <span className="ml-auto text-white font-medium bg-app-card px-2 py-0.5 rounded-md text-[10px]">+{realizedR.toFixed(2)}R</span>
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+
+                <div className="pt-4 border-t border-app-border flex justify-between items-center">
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${trade.status === 'BE' ? 'bg-app-warning/10 text-app-warning' : 'bg-app-primary/10 text-app-primary'}`}>
+                        {trade.status === 'BE' ? 'Break Even' : 'Running Active'}
+                    </span>
+                    <button 
+                        onClick={() => setEditingTrade(trade)}
+                        className="btn-secondary px-4 py-2 text-xs"
+                    >
+                        Manage Trade
+                    </button>
+                </div>
             </div>
-          </div>
-        ))}
+           );
+        })}
       </div>
 
       {editingTrade && (
@@ -121,23 +180,32 @@ export const ActiveTradesTab: React.FC<ActiveTradesTabProps> = ({
             onClose={() => setEditingTrade(null)} 
             onUpdate={updateTrade}
             onCloseTrade={closeTrade}
+            t={t}
           />
       )}
     </div>
   );
 };
 
-// Sub-component for managing a specific trade
+const ActivityIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </svg>
+);
+
 const ManageTradeModal: React.FC<{
     trade: Trade; 
     onClose: () => void; 
     onUpdate: (t: Trade) => void;
     onCloseTrade: (id: string, status: TradeStatus, r: number) => void;
-}> = ({ trade, onClose, onUpdate, onCloseTrade }) => {
+    t: Translation;
+}> = ({ trade, onClose, onUpdate, onCloseTrade, t }) => {
     
     const [tps, setTps] = useState<PartialTP[]>(trade.tps);
     const [status, setStatus] = useState<TradeStatus>(trade.status);
     const [manualCloseR, setManualCloseR] = useState<string>("");
+    
+    const riskMult = trade.riskMultiple || 1.0;
 
     const toggleTP = (id: string) => {
         const newTps = tps.map(tp => tp.id === id ? { ...tp, hit: !tp.hit } : tp);
@@ -145,130 +213,116 @@ const ManageTradeModal: React.FC<{
     };
 
     const handleSave = () => {
-        onUpdate({
-            ...trade,
-            tps,
-            status
-        });
+        onUpdate({ ...trade, tps, status });
         onClose();
     };
 
     const handleFullClose = (result: 'WIN' | 'LOSS' | 'BE') => {
         let finalR = 0;
-        if (result === 'LOSS') finalR = -1;
+        if (result === 'LOSS') finalR = -1 * riskMult;
         else if (result === 'BE') finalR = 0;
         else {
-             // For a win, user usually manually inputs the final R if not hitting a specific TP
-             // Or we calculate based on last hit TP. 
-             // To simplify, let's ask for the R or calculate from price.
-             // Here we use the manual input if provided, otherwise assume last hit TP.
-             if (manualCloseR) {
-                 finalR = parseFloat(manualCloseR);
-             } else {
-                 // Auto calculate based on highest hit TP? 
-                 // It's safer to require input for "Win" if not obvious.
-                 // Defaulting to 1R if nothing set for safety in this demo
-                 finalR = 1; 
-             }
+             if (manualCloseR) finalR = parseFloat(manualCloseR);
+             else finalR = 1 * riskMult; 
         }
-
         const finalStatus = result === 'WIN' ? 'WON' : result === 'LOSS' ? 'LOST' : 'BE';
         onCloseTrade(trade.id, finalStatus, finalR);
         onClose();
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-800 w-full max-w-lg rounded-2xl border border-slate-700 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold text-white">Manage Trade: {trade.pair}</h3>
-                        <button onClick={onClose} className="text-slate-400 hover:text-white"><XCircle size={24} /></button>
-                    </div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+            <div className="bg-app-surface w-full max-w-lg rounded-2xl border border-app-border shadow-2xl overflow-hidden">
+                <div className="flex justify-between items-center p-4 border-b border-app-border bg-app-bg/50">
+                    <span className="font-bold text-white">Manage: {trade.pair}</span>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-app-card text-app-muted hover:text-white transition"><X size={18} /></button>
+                </div>
 
-                    {/* Status Toggles */}
+                <div className="p-6">
                     <div className="mb-6">
-                        <label className="text-sm text-slate-400 mb-2 block">Current State</label>
-                        <div className="flex gap-2">
+                        <label className="text-xs font-semibold text-app-muted mb-2 block uppercase tracking-wider">Update Status</label>
+                        <div className="flex gap-3">
                             <button 
                                 onClick={() => setStatus('OPEN')}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold border ${status === 'OPEN' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-900 border-slate-700 text-slate-400'}`}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold border transition ${status === 'OPEN' ? 'bg-app-primary text-white border-app-primary shadow-lg shadow-blue-500/20' : 'bg-transparent border-app-border text-app-muted'}`}
                             >
-                                Open
+                                OPEN
                             </button>
                             <button 
                                 onClick={() => setStatus('BE')}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold border ${status === 'BE' ? 'bg-yellow-600 text-white border-yellow-500' : 'bg-slate-900 border-slate-700 text-slate-400'}`}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold border transition ${status === 'BE' ? 'bg-app-warning text-white border-app-warning shadow-lg shadow-amber-500/20' : 'bg-transparent border-app-border text-app-muted'}`}
                             >
-                                Break Even
+                                BREAK EVEN
                             </button>
                         </div>
                     </div>
 
-                    {/* TP Management */}
                     <div className="mb-6">
-                        <label className="text-sm text-slate-400 mb-2 block">Partial Take Profits</label>
+                        <label className="text-xs font-semibold text-app-muted mb-2 block uppercase tracking-wider">TP Checklist</label>
                         <div className="space-y-2">
                             {tps.map(tp => (
                                 <button 
                                     key={tp.id}
                                     onClick={() => toggleTP(tp.id)}
-                                    className={`w-full flex justify-between items-center p-3 rounded-lg border transition ${
-                                        tp.hit ? 'bg-emerald-900/30 border-emerald-500/50' : 'bg-slate-900 border-slate-700 hover:border-slate-500'
+                                    className={`w-full flex justify-between items-center p-3 rounded-xl border transition ${
+                                        tp.hit ? 'bg-app-success/10 border-app-success/30' : 'bg-app-bg border-app-border hover:border-app-muted'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-5 h-5 rounded flex items-center justify-center border ${tp.hit ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`}>
-                                            {tp.hit && <CheckCircle size={14} className="text-white" />}
+                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${tp.hit ? 'bg-app-success border-app-success' : 'border-app-border'}`}>
+                                            {tp.hit && <Check size={12} className="text-white"/>}
                                         </div>
-                                        <span className={tp.hit ? 'text-emerald-300' : 'text-slate-300'}>Target: {tp.price}</span>
+                                        <span className={`font-mono text-sm ${tp.hit ? 'text-app-success font-bold' : 'text-app-text'}`}>
+                                            {tp.price}
+                                        </span>
                                     </div>
-                                    <span className="text-slate-500 text-sm">{tp.percentage}% Qty</span>
+                                    <span className="text-xs font-medium text-app-muted bg-app-surface px-2 py-1 rounded-md">{tp.percentage}%</span>
                                 </button>
                             ))}
-                            {tps.length === 0 && <p className="text-slate-500 text-sm italic">No partial TPs set.</p>}
+                            {tps.length === 0 && <p className="text-center text-xs text-app-muted italic">No partials set.</p>}
                         </div>
                     </div>
 
-                    <div className="border-t border-slate-700 my-4"></div>
+                    <div className="border-t border-app-border my-6"></div>
 
-                    {/* Close Actions */}
-                    <label className="text-sm text-slate-400 mb-2 block">Close Trade Completely</label>
-                    <div className="grid grid-cols-3 gap-2 mb-4">
+                    <label className="text-xs font-semibold text-app-muted mb-3 block uppercase tracking-wider">Close Trade</label>
+                    <div className="grid grid-cols-3 gap-3 mb-4">
                          <button 
                             onClick={() => handleFullClose('LOSS')}
-                            className="bg-rose-900/40 hover:bg-rose-900/60 text-rose-400 border border-rose-800 p-2 rounded-lg text-sm font-bold"
+                            className="bg-app-danger/10 text-app-danger hover:bg-app-danger hover:text-white border border-app-danger/20 rounded-xl py-3 text-xs font-bold transition"
                         >
-                            Stop Hit (-1R)
+                            Stop Loss
                         </button>
                          <button 
                             onClick={() => handleFullClose('BE')}
-                            className="bg-yellow-900/40 hover:bg-yellow-900/60 text-yellow-400 border border-yellow-800 p-2 rounded-lg text-sm font-bold"
+                            className="bg-app-warning/10 text-app-warning hover:bg-app-warning hover:text-white border border-app-warning/20 rounded-xl py-3 text-xs font-bold transition"
                         >
-                            Closed BE (0R)
+                            Close BE
                         </button>
-                        <div className="relative">
-                             <input 
-                                type="number" 
-                                placeholder="R Result?" 
-                                value={manualCloseR}
-                                onChange={(e) => setManualCloseR(e.target.value)}
-                                className="w-full bg-emerald-900/20 border border-emerald-800 text-emerald-400 p-2 rounded-lg text-sm font-bold text-center outline-none focus:ring-1 focus:ring-emerald-500 mb-1"
-                            />
-                            <button 
-                                onClick={() => handleFullClose('WIN')}
-                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-1 rounded"
-                            >
-                                Close Win
-                            </button>
+                        <div className="flex flex-col gap-1">
+                             <div className="flex rounded-xl overflow-hidden border border-app-success/30">
+                                <input 
+                                    type="number" 
+                                    placeholder="R" 
+                                    value={manualCloseR}
+                                    onChange={(e) => setManualCloseR(e.target.value)}
+                                    className="w-1/2 bg-app-bg text-center text-xs font-bold text-white outline-none"
+                                />
+                                <button 
+                                    onClick={() => handleFullClose('WIN')}
+                                    className="w-1/2 bg-app-success text-white text-xs font-bold hover:bg-app-success/90"
+                                >
+                                    WIN
+                                </button>
+                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div className="bg-slate-900 p-4 flex justify-end gap-3 border-t border-slate-700">
-                     <button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-bold">
-                         Save Updates
-                     </button>
+                <div className="p-4 border-t border-app-border bg-app-bg/50">
+                    <button onClick={handleSave} className="w-full btn-primary py-3 text-sm">
+                        {t.common.save} Changes
+                    </button>
                 </div>
             </div>
         </div>
